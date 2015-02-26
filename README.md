@@ -6,20 +6,36 @@ on the [GitHub Applications Page](https://github.com/settings/applications).
 
 ## Basic Usage
 
-    use OmniAuth::Builder do
-      provider :github, ENV['GITHUB_KEY'], ENV['GITHUB_SECRET']
-    end
+Add to your `Gemfile`:
+gem 'omniauth-github'
+
+Then `bundle install`
+
+Add to an initializer `config/initializers/omniauth.rb`:
+```
+Rails.application.config.middleware.use OmniAuth::Builder do
+  provider :github, ENV['GITHUB_CLIENT_ID'], ENV['GITHUB_CLIENT_SECRET']
+end
+```
+## Github Callback
+
+When a user visits `/auth/github` and are redirected and signin at Github they are redirected to the callback specified in the Github application settings.
+
+The response to Rails in `env.omniauth`:
+
+`env.omniauth # => [:uid, :provider, info: :name, credentials: :token]`
 
 ## Github Enterprise Usage
-
-    provider :github, ENV['GITHUB_KEY'], ENV['GITHUB_SECRET'],
-        {
-          :client_options => {
-            :site => 'https://github.YOURDOMAIN.com/',
-            :authorize_url => 'https://github.YOURDOMAIN.com/login/oauth/authorize',
-            :token_url => 'https://github.YOURDOMAIN.com/login/oauth/access_token',
-          }
-        }
+```
+provider :github, ENV['GITHUB_CLIENT_ID'], ENV['GITHUB_CLIENT_SECRET'],
+{
+  :client_options => {
+    :site => 'https://github.YOURDOMAIN.com/',
+    :authorize_url => 'https://github.YOURDOMAIN.com/login/oauth/authorize',
+    :token_url => 'https://github.YOURDOMAIN.com/login/oauth/access_token',
+  }
+}
+```
 
 ## Scopes
 

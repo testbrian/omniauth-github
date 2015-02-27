@@ -7,11 +7,13 @@ on the [GitHub Applications Page](https://github.com/settings/applications).
 ## Basic Usage
 
 Add to your `Gemfile`:
+```
 gem 'omniauth-github'
+```
 
 Then `bundle install`
 
-Add to an initializer `config/initializers/omniauth.rb`:
+Create an initializer `config/initializers/omniauth.rb`:
 ```
 Rails.application.config.middleware.use OmniAuth::Builder do
   provider :github, ENV['GITHUB_CLIENT_ID'], ENV['GITHUB_CLIENT_SECRET']
@@ -19,11 +21,78 @@ end
 ```
 ## Github Callback
 
-When a user visits `/auth/github` and are redirected and signin at Github they are redirected to the callback specified in the Github application settings.
+When a user on your site visits `/auth/github` and will be redirected to Github and asked to verify permissions. When they accept, they will be sent back to your site based on the callback setting for the application you setup. [https://developer.github.com/v3/oauth/](Read Github OAuth documentation)
 
+When the user is redirected back to your site, the callback URL will have the following variables available:
 The response to Rails in `env.omniauth`:
 
 `env.omniauth # => [:uid, :provider, info: :name, credentials: :token]`
+
+## Example
+
+Create a Rails app as described above.
+
+Generate a new controller:
+```
+rails g controller Sessions
+```
+Generate a user model:
+```
+rails g model user provider uid name oauth_token oauth_expires_at:datetime
+```
+
+Add a route to `config/routes.rb`:
+```
+  get 'auth/:provider/callback', to: 'sessions#create'
+  get 'auth/failure', to: redirect('/')
+  get 'signout', to: 'sessions#destroy', as: 'signout'
+
+  resources :sessions, only: [:create, :destroy]
+```
+Add create and destroy actions to SessionsController:
+```
+  def create
+    user = User.from_omniauth(env["omniauth.auth"])
+    session[:user_id] = user.id
+    redirect_to root_path
+  end
+
+  def destroy
+    session[:user_id] = nil
+    redirect_to root_path
+  end
+```
+
+Add a class method to User:
+```
+class User < ActiveRecord::Base
+
+  def self.from_omniauth(auth)
+    where(provider: auth[:provider], uid: auth[:uid]).first_or_initialize.tap do |user|
+      user.provider = auth.provider
+      user.uid = auth.uid
+      user.name = auth.info.name
+      user.oauth_token = auth.credentials.token
+      user.oauth_expires_at = Time.at(auth.credentials.expires_at) if auth.credentials.try(:expires_at)
+      user.save!
+    end
+  end
+end
+```
+
+Add link to signin in application layout:
+```
+ %body
+    %div
+      - if current_user
+        Signed in as
+        = succeed "!" do
+          %strong= current_user.name
+        = link_to "Sign out", signout_path, id: "sign_out"
+      - else
+        = link_to "Sign in with Github", "/auth/github", id: "sign_in"
+    = yield
+```
 
 ## Github Enterprise Usage
 ```
@@ -41,7 +110,7 @@ provider :github, ENV['GITHUB_CLIENT_ID'], ENV['GITHUB_CLIENT_SECRET'],
 
 GitHub API v3 lets you set scopes to provide granular access to different types of data: 
 
-	use OmniAuth::Builder do
+  	use OmniAuth::Builder do
       provider :github, ENV['GITHUB_KEY'], ENV['GITHUB_SECRET'], scope: "user,repo,gist"
     end
 

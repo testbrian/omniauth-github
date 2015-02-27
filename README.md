@@ -30,18 +30,39 @@ The response to Rails in `env.omniauth`:
 
 ## Example
 
-Create a Rails app as described above.
+Setup your Rails app and signup for a OAuth Application as described above.
 
-Generate a new controller:
+### 1. Generate a new controller:
+
 ```
 rails g controller Sessions
 ```
-Generate a user model:
+
+### 2. Generate a user model:
+
 ```
 rails g model user provider uid name oauth_token oauth_expires_at:datetime
+rake db:migrate
 ```
 
-Add a route to `config/routes.rb`:
+### 3. Add to your `Gemfile`:
+
+```
+gem 'omniauth-github'
+Then `bundle install`
+```
+
+
+### 4. Create an initializer `config/initializers/omniauth.rb`:
+
+```
+Rails.application.config.middleware.use OmniAuth::Builder do
+  provider :github, ENV['GITHUB_CLIENT_ID'], ENV['GITHUB_CLIENT_SECRET']
+end
+```
+
+### 5. Add these routes to `config/routes.rb`:
+
 ```
   get 'auth/:provider/callback', to: 'sessions#create'
   get 'auth/failure', to: redirect('/')
@@ -49,7 +70,9 @@ Add a route to `config/routes.rb`:
 
   resources :sessions, only: [:create, :destroy]
 ```
-Add create and destroy actions to SessionsController:
+
+### 6. Add create and destroy actions to SessionsController:
+
 ```
   def create
     user = User.from_omniauth(env["omniauth.auth"])
@@ -63,7 +86,8 @@ Add create and destroy actions to SessionsController:
   end
 ```
 
-Add a class method to User:
+### 7. Add a class method to User:
+
 ```
 class User < ActiveRecord::Base
 
@@ -80,19 +104,33 @@ class User < ActiveRecord::Base
 end
 ```
 
-Add link to signin in application layout:
+### 8. Add a `current_user` method to ApplicationController:
+
 ```
- %body
-    %div
-      - if current_user
-        Signed in as
-        = succeed "!" do
-          %strong= current_user.name
-        = link_to "Sign out", signout_path, id: "sign_out"
-      - else
-        = link_to "Sign in with Github", "/auth/github", id: "sign_in"
-    = yield
+class ApplicationController < ActionController::Base
+
+  helper_method :current_user
+
+  def current_user
+    @current_user ||= User.find(session[:user_id]) if session[:user_id]
+  end
+end
 ```
+
+### 9. Add link to signin in application layout:
+
+```
+  <div>
+    <% if current_user %>
+      Signed in as <strong><%= current_user.name %></strong>!
+      <%= link_to "Sign out", signout_path, id: "sign_out" %>
+    <% else %>
+      <%= link_to "Sign in with Github", "/auth/github", id: "sign_in" %>
+    <% end %>
+  </div>
+```
+
+This example based on the article by RichOnRails, [Google authentication in Ruby on Rails](http://richonrails.com/articles/google-authentication-in-ruby-on-rails)
 
 ## Github Enterprise Usage
 ```

@@ -49,8 +49,9 @@ rake db:migrate
 
 ```
 gem 'omniauth-github'
-Then `bundle install`
 ```
+
+Then `bundle install`
 
 
 ### 4. Create an initializer `config/initializers/omniauth.rb`:
